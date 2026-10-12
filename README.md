@@ -191,12 +191,12 @@ while the increases look more like scattered, indirect effects.
 - **Dispersion trend:** PyDESeq2 reported that the parametric dispersion trend did not converge and switched to a mean-based trend. This is common with few replicates.
 - **Rounded counts:** Salmon's estimated counts can be fractional; they were rounded to integers before PyDESeq2.
 - **Reference version:** the pipeline downloads from Ensembl's `current_fasta` folder, which always points to the latest release. Results may differ slightly if run against a newer release.
-- **Interpretation is exploratory:** themes were identified by reading the top-ranked genes. A gene set enrichment analysis would test them statistically.
-
+- **Interpretation is partly exploratory:** the top-gene table was interpreted by reading gene descriptions; GO enrichment (see above) was then used to test themes statistically.
 ---
 
 ## Possible next steps
 
-- Gene set / GO enrichment analysis on the 454 significant genes
+- Run GSEA (gene set enrichment analysis) on the full ranked gene list, which can detect smaller, coordinated changes that the cut-off-based GO analysis misses
+- Cross-check the GO results with an independent tool, such as g:Profiler or SGD's GO Term Finder, using up-to-date annotations
 - Include more of the 48 available replicates
 - Rebuild the pipeline with a workflow manager (e.g. Nextflow) for parallel, resumable runs
