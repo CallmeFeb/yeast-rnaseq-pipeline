@@ -152,6 +152,39 @@ SNF2 is part of the SWI/SNF complex, which helps switch genes on by opening up c
 
 ---
 
+## GO enrichment analysis
+
+To find which biological processes were affected, I ran GO over-representation
+analysis with gseapy (`GO_Biological_Process_2018` library). Down- and
+up-regulated genes were tested separately, using all 6,200 tested genes as the
+background.
+
+**Genes decreased in the snf2 mutant (285)** were enriched for four themes:
+
+- purine (IMP) biosynthesis: ADE1, ADE2, ADE4, ADE6, ADE13, ADE17 (7 of the 10 genes in the pathway)
+- histidine biosynthesis: HIS1, HIS3, HIS4, HIS6, HIS7
+- lysine biosynthesis: LYS1, LYS2, LYS9, LYS12, LYS20
+- transmembrane transport, including glucose (HXT6, HXT7) and iron (ARN1, ARN2, SIT1) transporters
+
+Glycolysis was also enriched (6 of 19 genes, padj = 0.0045).
+
+![GO enrichment of down-regulated genes](results/go_down_barplot.png)
+
+**Genes increased in the snf2 mutant (169)** showed no significantly enriched
+processes (all padj > 0.05). The up-regulated genes are spread across many
+different processes, with only one or two genes in each. This fits SWI/SNF's
+main role in activating genes: losing it lowers whole programmes together,
+while the increases look more like scattered, indirect effects.
+
+**Limitations**
+
+- The GO library is from 2018, so newer gene annotations are not included.
+- About 1,600 of the 6,200 tested genes have no Biological Process annotation
+  and could not contribute to any term.
+- Several enriched terms overlap because GO terms are nested (for example, the
+  IMP and purine terms share the same ADE genes), so they are grouped into
+  themes above.
+
 ## Notes and limitations
 
 - **Small sample size:** 3 replicates per group (the original study had 48). Results are robust for strong effects but may miss subtler changes.

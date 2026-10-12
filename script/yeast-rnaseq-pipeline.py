@@ -7,9 +7,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import gzip
+import gseapy as gp
 
 # %%
-table = pd.read_csv('data/processed/combined_matrix.tsv', sep='\t', index_col='Name' )
+table = pd.read_csv('../data/processed/combined_matrix.tsv', sep='\t', index_col='Name' )
 table.columns = table.columns.str.replace("_quant", "", regex=False)
 table = table.round().astype(int)
 Meta = pd.DataFrame({
@@ -72,13 +73,13 @@ plt.xlabel(f"PC1({pca.explained_variance_ratio_[0]*100:.1f}%)")
 plt.ylabel(f"PC2({pca.explained_variance_ratio_[1]*100:.1f}%)")
 plt.title("PCA: wild-type vs SNF2 mutant")
 plt.legend()
-plt.savefig("results/pca_plot.png", dpi=300)
+plt.savefig("../results/pca_plot.png", dpi=300)
 plt.close()
 
 # %%
 row =[]
 
-with gzip.open('data/raw/Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz','rt') as f:
+with gzip.open('../data/raw/Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz','rt') as f:
     for line in f:
         if not line.startswith('>'):
             continue
@@ -102,7 +103,7 @@ with gzip.open('data/raw/Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz','rt') 
 
 annot =pd.DataFrame(row).set_index('transcript_id')
 annot.shape
-#annot.head()
+annot.head()
 
 
 # %%
@@ -151,14 +152,87 @@ plt.xlabel('log2 fold change (Mutated vs Normal)')
 plt.ylabel('-log10 adjusted p-value')
 plt.title("Volcano plot: SNF2 mutant vs wild-type")
 plt.legend()
-plt.savefig("results/volcano_plot.png", dpi=300)
-plt.close()
+plt.savefig("../results/volcano_plot.png", dpi=300)
+plt.show()
 
 
 # %%
-result_df.to_csv("results/dge_all_genes.csv")
-annotated.to_csv("results/dge_significant_genes_annotated.csv")
+result_df.to_csv("../results/dge_all_genes.csv")
+annotated.to_csv("../results/dge_significant_genes_annotated.csv")
 print("Saved")
+
+# %%
+libraries =gp.get_library_name(organism="yeast")
+print(len(libraries))
+print([lib for lib in libraries if "GO"in lib])
+
+go_bp=gp.get_library('GO_Biological_Process_2018', organism="yeast")
+print(len(go_bp))
+first=list(go_bp.keys())[0]
+print(first)
+print(go_bp[first])
+
+systematic = annot.index.to_series().str.replace("_mRNA","", regex=False)
+annot['gene_name']= annot['symbol'].where(annot['symbol'] !="", systematic)
+annot.loc[["YHR174W_mRNA", "YPL071C_mRNA"], ["symbol", "gene_name"]]
+
+
+down_ids = clean_results[clean_results["log2FoldChange"] < 0].index
+up_ids = clean_results[clean_results["log2FoldChange"] > 0].index
+
+down_genes = annot.loc[down_ids, "gene_name"].tolist()
+up_genes = annot.loc[up_ids, "gene_name"].tolist()
+background = annot.loc[result_df.index, "gene_name"].tolist()
+
+library_genes= set()
+for go in go_bp.values():
+    library_genes.update(go)
+
+found= [g for g in background if g in library_genes]
+print(len(library_genes), len(found))
 
 # %% [markdown]
 # 
+
+# %%
+enr_down = gp.enrichr(
+    gene_list= down_genes,
+    gene_sets= go_bp,
+    background=background,
+    outdir=None
+)
+
+res_down= enr_down.results.sort_values('Adjusted P-value')
+res_down[["Term", "Overlap", "Adjusted P-value", "Genes"]].head(10)
+res_down[res_down["Term"].str.contains("glycoly")][["Term", "Overlap", "Adjusted P-value"]]
+
+enr_up= gp.enrichr(
+    gene_list= up_genes,
+    gene_sets= go_bp,
+    background=background,
+    outdir=None
+)
+
+res_up= enr_up.results.sort_values('Adjusted P-value')
+res_up[["Term", "Overlap", "Adjusted P-value", "Genes"]].head(10)
+
+top = res_down.head(10).copy()
+top["neg_log10_padj"] = -np.log10(top["Adjusted P-value"])
+top["label"] = top["Term"].str.replace(r" \(GO:\d+\)", "", regex=True)
+
+plt.figure(figsize=(8, 5))
+plt.barh(top["label"], top["neg_log10_padj"], color="steelblue")
+plt.axvline(-np.log10(0.05), color="black", linestyle="--", linewidth=0.8)
+plt.gca().invert_yaxis()
+
+plt.xlabel("-log10 adjusted p-value")
+plt.title("GO Biological Process: genes down in snf2 mutant")
+plt.tight_layout()
+plt.savefig("results/go_down_barplot.png", dpi=300)
+plt.close()
+
+res_down.to_csv("results/go_bp_down.csv", index=False)
+res_up.to_csv("results/go_bp_up.csv", index=False)
+
+
+
